@@ -1,10 +1,14 @@
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, Responder, Result, get, post, web};
 use futures_util::StreamExt;
+
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex};
 
 use crate::db::*;
+use crate::error::SubmError;
+
+use log::error;
 
 pub type DbState = Arc<Mutex<SubmDb>>;
 
@@ -22,38 +26,41 @@ async fn create_problem(
     db: web::Data<DbState>,
     problem: web::Json<CreateProblem>,
 ) -> Result<impl Responder> {
-    let mut db = db.lock().await;
+    let db = db.lock().await;
     match db.create_problem(problem.into_inner()).await {
         Ok(id) => Ok(HttpResponse::Created().json(serde_json::json!({"id": id}))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to create problem: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
 #[get("/api/problems")]
 async fn get_problems(db: web::Data<DbState>) -> Result<impl Responder> {
-    let mut db = db.lock().await;
+    let db = db.lock().await;
     match db.get_problems().await {
         Ok(problems) => Ok(HttpResponse::Ok().json(problems)),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to get problems: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
 #[get("/api/problems/{id}")]
 async fn get_problem(db: web::Data<DbState>, path: web::Path<i64>) -> Result<impl Responder> {
     let problem_id = path.into_inner();
-    let mut db = db.lock().await;
+    let db = db.lock().await;
     match db.get_problem_by_id(problem_id).await {
         Ok(Some(problem)) => Ok(HttpResponse::Ok().json(problem)),
         Ok(None) => Ok(HttpResponse::NotFound().json(serde_json::json!({
             "error": "Problem not found"
         }))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to get problem: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
@@ -99,9 +106,9 @@ async fn create_submission(
     }
 
     let submission = CreateSubmission { comment };
-    let mut db = db.lock().await;
 
     // Verify problem exists
+    let db = db.lock().await;
     match db.get_problem_by_id(problem_id).await {
         Ok(None) => {
             return Ok(HttpResponse::NotFound().json(serde_json::json!({
@@ -109,9 +116,8 @@ async fn create_submission(
             })));
         }
         Err(e) => {
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": format!("Failed to verify problem: {}", e)
-            })));
+            error!("{}", e);
+            return Err(SubmError::GenericError.into());
         }
         _ => {}
     }
@@ -121,35 +127,38 @@ async fn create_submission(
         .await
     {
         Ok(id) => Ok(HttpResponse::Created().json(serde_json::json!({"id": id}))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to create submission: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
 #[get("/api/submissions")]
 async fn get_submissions(db: web::Data<DbState>) -> Result<impl Responder> {
-    let mut db = db.lock().await;
+    let db = db.lock().await;
     match db.get_submissions().await {
         Ok(submissions) => Ok(HttpResponse::Ok().json(submissions)),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to get submissions: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
 #[get("/api/submissions/{id}")]
 async fn get_submission(db: web::Data<DbState>, path: web::Path<i64>) -> Result<impl Responder> {
     let submission_id = path.into_inner();
-    let mut db = db.lock().await;
+    let db = db.lock().await;
     match db.get_submission_by_id(submission_id).await {
         Ok(Some(submission)) => Ok(HttpResponse::Ok().json(submission)),
         Ok(None) => Ok(HttpResponse::NotFound().json(serde_json::json!({
             "error": "Submission not found"
         }))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to get submission: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
@@ -160,9 +169,9 @@ async fn create_feedback(
     feedback: web::Json<CreateFeedback>,
 ) -> Result<impl Responder> {
     let submission_id = path.into_inner();
-    let mut db = db.lock().await;
 
     // Verify submission exists
+    let db = db.lock().await;
     match db.get_submission_by_id(submission_id).await {
         Ok(None) => {
             return Ok(HttpResponse::NotFound().json(serde_json::json!({
@@ -170,9 +179,8 @@ async fn create_feedback(
             })));
         }
         Err(e) => {
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": format!("Failed to verify submission: {}", e)
-            })));
+            error!("{}", e);
+            return Err(SubmError::GenericError.into());
         }
         _ => {}
     }
@@ -183,25 +191,26 @@ async fn create_feedback(
     {
         Ok(feedback_id) => Ok(HttpResponse::Created().json(serde_json::json!({
             "id": feedback_id,
-            "message": "Feedback created successfully"
         }))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": format!("Failed to create feedback: {}", e)
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::GenericError.into())
+        },
     }
 }
 
 #[get("/api/files/{hash}")]
 async fn get_file(db: web::Data<DbState>, path: web::Path<String>) -> Result<impl Responder> {
     let hash = path.into_inner();
-    let db = db.lock().await;
 
+    let db = db.lock().await;
     match db.get_file_content(&hash).await {
         Ok(content) => Ok(HttpResponse::Ok()
             .content_type("application/octet-stream")
             .body(content)),
-        Err(_) => Ok(HttpResponse::NotFound().json(serde_json::json!({
-            "error": "File not found"
-        }))),
+        Err(e) => {
+            error!("{}", e);
+            Err(SubmError::FileNotFound.into())
+        },
     }
 }

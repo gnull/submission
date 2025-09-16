@@ -10,7 +10,7 @@ use submission::db::*;
 #[actix_web::test]
 async fn test_full_api_workflow() {
     // Create test database
-    let mut db = SubmDb::new(":memory:").await;
+    let mut db = SubmDb::new(":memory:", unimplemented!()).await;
     db.init().await;
     let db_state = Arc::new(Mutex::new(db));
 
@@ -237,7 +237,7 @@ async fn test_full_api_workflow() {
 #[actix_web::test]
 async fn test_submission_rejection() {
     // Test that a submission is rejected when all feedbacks are 0
-    let mut db = SubmDb::new(":memory:").await;
+    let mut db = SubmDb::new(":memory:", unimplemented!()).await;
     db.init().await;
     let db_state = Arc::new(Mutex::new(db));
 
@@ -326,7 +326,7 @@ async fn test_submission_rejection() {
 #[actix_web::test]
 async fn test_error_cases() {
     // Create test database
-    let mut db = SubmDb::new(":memory:").await;
+    let mut db = SubmDb::new(":memory:", unimplemented!()).await;
     db.init().await;
     let db_state = Arc::new(Mutex::new(db));
 
