@@ -1,4 +1,3 @@
-use derive_more::{Deref, From};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -6,8 +5,10 @@ use std::io::Write;
 use std::path::Path;
 use turso::{Builder, Connection};
 
-#[derive(From, Deref)]
-pub struct SubmDb(Connection);
+pub struct SubmDb {
+    conn: Connection,
+    uploads_dir: String,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Problem {
@@ -63,21 +64,24 @@ pub struct CreateFeedback {
 }
 
 impl SubmDb {
-    pub async fn new(s: &str) -> Self {
+    pub async fn new(s: &str, uploads_dir: &str) -> Self {
         let db = Builder::new_local(s).build().await.unwrap();
 
         // Create uploads directory if it doesn't exist
-        let upload_dir = "uploads";
-        if !Path::new(upload_dir).exists() {
-            fs::create_dir_all(upload_dir).expect("Failed to create uploads directory");
+        if !Path::new(uploads_dir).exists() {
+            fs::create_dir_all(uploads_dir).expect("Failed to create uploads directory");
         }
 
-        SubmDb(db.connect().unwrap())
+        SubmDb {
+            conn: db.connect().unwrap(),
+            uploads_dir: uploads_dir.to_string(),
+        }
     }
 
     pub async fn init(&mut self) {
-        self.execute_batch(
-            "
+        self.conn
+            .execute_batch(
+                "
               CREATE TABLE IF NOT EXISTS problem (
                   id INTEGER PRIMARY KEY,
                   name TEXT,
@@ -108,27 +112,29 @@ impl SubmDb {
                   FOREIGN KEY (submission) REFERENCES submission(id)
               );
             ",
-        )
-        .await
-        .unwrap();
+            )
+            .await
+            .unwrap();
     }
 
     pub async fn create_problem(
         &mut self,
         problem: CreateProblem,
     ) -> Result<i64, Box<dyn std::error::Error>> {
-        self.execute(
-            "INSERT INTO problem (name, desc) VALUES (?, ?)",
-            [problem.name.as_str(), problem.desc.as_str()],
-        )
-        .await?;
+        self.conn
+            .execute(
+                "INSERT INTO problem (name, desc) VALUES (?, ?)",
+                [problem.name.as_str(), problem.desc.as_str()],
+            )
+            .await?;
 
-        let id = self.last_insert_rowid();
+        let id = self.conn.last_insert_rowid();
         Ok(id)
     }
 
     pub async fn get_problems(&mut self) -> Result<Vec<Problem>, Box<dyn std::error::Error>> {
         let mut rows = self
+            .conn
             .query("SELECT id, name, desc FROM problem ORDER BY id", ())
             .await?;
 
@@ -148,6 +154,7 @@ impl SubmDb {
         id: i64,
     ) -> Result<Option<Problem>, Box<dyn std::error::Error>> {
         let mut rows = self
+            .conn
             .query("SELECT id, name, desc FROM problem WHERE id = ?", [id])
             .await?;
 
@@ -173,21 +180,23 @@ impl SubmDb {
         let hash = format!("{:x}", hasher.finalize());
 
         // Store file with hash as filename
-        let file_path = format!("uploads/{}", hash);
+        let file_path = format!("{}/{}", self.uploads_dir, hash);
         let mut file = fs::File::create(&file_path)?;
         file.write_all(content)?;
 
         // Insert file info into database (check if exists first)
         let mut existing_rows = self
+            .conn
             .query("SELECT id FROM file WHERE hash = ?", [hash.as_str()])
             .await?;
 
         if existing_rows.next().await?.is_none() {
-            self.execute(
-                "INSERT INTO file (name, hash) VALUES (?, ?)",
-                [filename, hash.as_str()],
-            )
-            .await?;
+            self.conn
+                .execute(
+                    "INSERT INTO file (name, hash) VALUES (?, ?)",
+                    [filename, hash.as_str()],
+                )
+                .await?;
         }
 
         Ok(hash)
@@ -200,13 +209,14 @@ impl SubmDb {
         files: Vec<(String, Vec<u8>)>,
     ) -> Result<i64, Box<dyn std::error::Error>> {
         // Create submission
-        self.execute(
-            "INSERT INTO submission (comment, problem) VALUES (?, ?)",
-            [submission.comment.as_str(), problem_id.to_string().as_str()],
-        )
-        .await?;
+        self.conn
+            .execute(
+                "INSERT INTO submission (comment, problem) VALUES (?, ?)",
+                [submission.comment.as_str(), problem_id.to_string().as_str()],
+            )
+            .await?;
 
-        let submission_id = self.last_insert_rowid();
+        let submission_id = self.conn.last_insert_rowid();
 
         // Store files and create attachments
         for (filename, content) in files {
@@ -214,20 +224,22 @@ impl SubmDb {
 
             // Get file ID
             let mut file_rows = self
+                .conn
                 .query("SELECT id FROM file WHERE hash = ?", [hash.as_str()])
                 .await?;
             let file_row = file_rows.next().await?.ok_or("File not found")?;
             let file_id: i64 = file_row.get(0)?;
 
             // Create attachment
-            self.execute(
-                "INSERT INTO attachment (submission, file) VALUES (?, ?)",
-                [
-                    submission_id.to_string().as_str(),
-                    file_id.to_string().as_str(),
-                ],
-            )
-            .await?;
+            self.conn
+                .execute(
+                    "INSERT INTO attachment (submission, file) VALUES (?, ?)",
+                    [
+                        submission_id.to_string().as_str(),
+                        file_id.to_string().as_str(),
+                    ],
+                )
+                .await?;
         }
 
         Ok(submission_id)
@@ -235,6 +247,7 @@ impl SubmDb {
 
     pub async fn get_submissions(&mut self) -> Result<Vec<Submission>, Box<dyn std::error::Error>> {
         let mut rows = self
+            .conn
             .query(
                 "SELECT id, comment, problem FROM submission ORDER BY id DESC",
                 (),
@@ -273,6 +286,7 @@ impl SubmDb {
         id: i64,
     ) -> Result<Option<Submission>, Box<dyn std::error::Error>> {
         let mut rows = self
+            .conn
             .query(
                 "SELECT id, comment, problem FROM submission WHERE id = ?",
                 [id],
@@ -310,7 +324,7 @@ impl SubmDb {
         &mut self,
         submission_id: i64,
     ) -> Result<Vec<FileInfo>, Box<dyn std::error::Error>> {
-        let mut rows = self.query(
+        let mut rows = self.conn.query(
             "SELECT f.id, f.name, f.hash FROM file f JOIN attachment a ON f.id = a.file WHERE a.submission = ?",
             [submission_id.to_string().as_str()]
         ).await?;
@@ -331,6 +345,7 @@ impl SubmDb {
         submission_id: i64,
     ) -> Result<Vec<Feedback>, Box<dyn std::error::Error>> {
         let mut rows = self
+            .conn
             .query(
                 "SELECT id, grade, message FROM feedback WHERE submission = ? ORDER BY id",
                 [submission_id.to_string().as_str()],
@@ -359,17 +374,18 @@ impl SubmDb {
         }
 
         // Always insert new feedback (multiple feedbacks allowed)
-        self.execute(
-            "INSERT INTO feedback (submission, grade, message) VALUES (?, ?, ?)",
-            [
-                submission_id.to_string().as_str(),
-                feedback.grade.to_string().as_str(),
-                feedback.message.as_deref().unwrap_or(""),
-            ],
-        )
-        .await?;
+        self.conn
+            .execute(
+                "INSERT INTO feedback (submission, grade, message) VALUES (?, ?, ?)",
+                [
+                    submission_id.to_string().as_str(),
+                    feedback.grade.to_string().as_str(),
+                    feedback.message.as_deref().unwrap_or(""),
+                ],
+            )
+            .await?;
 
-        let feedback_id = self.last_insert_rowid();
+        let feedback_id = self.conn.last_insert_rowid();
         Ok(feedback_id)
     }
 
@@ -377,7 +393,7 @@ impl SubmDb {
         &self,
         hash: &str,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let file_path = format!("uploads/{}", hash);
+        let file_path = format!("{}/{}", self.uploads_dir, hash);
         let content = fs::read(&file_path)?;
         Ok(content)
     }
