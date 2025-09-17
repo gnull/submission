@@ -47,6 +47,7 @@
                             v-model="newProblem.desc"
                             rows="8"
                             required
+                            class="create-problem-textarea"
                         />
                         <label for="problem-desc">Описание задачи</label>
                     </FloatLabel>
@@ -117,13 +118,51 @@
                                 label="Открыть задачу"
                                 icon="pi pi-external-link"
                                 severity="secondary"
-                                @click="$router.push(`/problem/${problem.id}`)"
+                                @click="openProblemDialog(problem)"
                             />
                         </div>
                     </template>
                 </Card>
             </div>
         </div>
+
+        <!-- Problem Details Dialog -->
+        <Dialog
+            v-model:visible="showProblemDialog"
+            :header="`${selectedProblem?.name || 'Задача'}`"
+            modal
+            :style="{ width: '90vw', maxWidth: '800px' }"
+            :maximizable="true"
+        >
+            <div v-if="selectedProblem" class="problem-dialog-content">
+                <!-- Problem Description -->
+                <div class="problem-description-section">
+                    <h3>Описание задачи</h3>
+                    <div class="problem-description-text">
+                        {{ selectedProblem.desc }}
+                    </div>
+                </div>
+
+                <!-- Problem Statistics -->
+                <div class="problem-stats-section">
+                    <h3>Статистика</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-number">{{
+                                getSubmissionCount(selectedProblem.id)
+                            }}</span>
+                            <span class="stat-label">Всего работ</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">{{
+                                getAcceptedSubmissionsCount(selectedProblem.id)
+                            }}</span>
+                            <span class="stat-label">Принято работ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Dialog>
 
         <!-- My Submissions Dialog -->
         <Dialog
@@ -301,7 +340,7 @@
                                         "
                                         rows="3"
                                         placeholder="Добавьте комментарий к оценке (необязательно)"
-                                        class="feedback-textarea"
+                                        class="feedback-textarea uniform-textarea"
                                     />
                                     <div class="feedback-buttons">
                                         <Button
@@ -415,12 +454,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { useToast } from "primevue/usetoast";
-import { useRouter } from "vue-router";
 import { apiService } from "../api";
 import type { Problem, Submission, CreateProblem, FileInfo } from "../types";
 
-// Router and Toast
-const router = useRouter();
+// Toast
 const toast = useToast();
 
 // Reactive state
@@ -438,6 +475,10 @@ const previewingFile = ref<number | null>(null);
 const filePreviewContent = ref("");
 const loadingPreview = ref(false);
 const previewError = ref(false);
+
+// Problem dialog state
+const showProblemDialog = ref(false);
+const selectedProblem = ref<Problem | null>(null);
 
 const newProblem = ref<CreateProblem>({
     name: "",
@@ -594,6 +635,12 @@ const getSubmissionCount = (problemId: number): number => {
     return allSubmissions.value.filter((s) => s.problem === problemId).length;
 };
 
+const getAcceptedSubmissionsCount = (problemId: number): number => {
+    return allSubmissions.value.filter(
+        (s) => s.problem === problemId && s.status.accepted,
+    ).length;
+};
+
 const getSelectedProblemName = (): string => {
     if (!selectedProblemId.value) return "";
     const problem = problems.value.find(
@@ -610,6 +657,11 @@ const truncateText = (text: string, length: number): string => {
 const closeCreateProblem = () => {
     showCreateProblem.value = false;
     newProblem.value = { name: "", desc: "" };
+};
+
+const openProblemDialog = (problem: Problem) => {
+    selectedProblem.value = problem;
+    showProblemDialog.value = true;
 };
 
 const showMessage = (msg: string, type: "success" | "error") => {
@@ -921,6 +973,42 @@ onMounted(() => {
     width: 100%;
 }
 
+.uniform-textarea {
+    width: 100% !important;
+    padding: 0.75rem !important;
+    border: 2px solid #ddd !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    background: white !important;
+    color: #333 !important;
+    resize: vertical !important;
+    font-family: inherit !important;
+    transition: border-color 0.2s !important;
+}
+
+.uniform-textarea:focus {
+    outline: none !important;
+    border-color: #007bff !important;
+}
+
+.create-problem-textarea {
+    width: 100% !important;
+    padding: 0.75rem !important;
+    border: 2px solid #ddd !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    background: white !important;
+    color: #333 !important;
+    resize: vertical !important;
+    font-family: inherit !important;
+    transition: border-color 0.2s !important;
+}
+
+.create-problem-textarea:focus {
+    outline: none !important;
+    border-color: #007bff !important;
+}
+
 .feedback-buttons {
     display: flex;
     gap: 0.5rem;
@@ -931,6 +1019,63 @@ onMounted(() => {
     display: flex;
     gap: 0.5rem;
     justify-content: flex-end;
+}
+
+.problem-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.problem-description-section h3,
+.problem-stats-section h3 {
+    color: var(--p-text-color);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.problem-description-text {
+    background: var(--p-surface-100);
+    padding: 1.5rem;
+    border-radius: var(--p-border-radius);
+    border-left: 4px solid var(--p-primary-color);
+    color: var(--p-text-color);
+    line-height: 1.8;
+    font-size: 1rem;
+    white-space: pre-wrap;
+}
+
+.problem-stats-section {
+    border-top: 2px solid var(--p-surface-border);
+    padding-top: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    background: var(--p-surface-100);
+    padding: 1rem;
+    border-radius: var(--p-border-radius);
+    text-align: center;
+    border-left: 4px solid var(--p-primary-color);
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--p-primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--p-text-muted-color);
 }
 
 @media (max-width: 768px) {
@@ -981,6 +1126,18 @@ onMounted(() => {
 
     .teacher-view {
         padding: 0.5rem;
+    }
+
+    .problem-dialog-content {
+        gap: 1.5rem;
+    }
+
+    .problem-description-text {
+        padding: 1rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
     }
 }
 </style>

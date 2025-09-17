@@ -1063,19 +1063,19 @@ onMounted(() => {
 .form-control {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid var(--p-surface-border);
-    border-radius: var(--p-border-radius);
+    border: 2px solid #ddd;
+    border-radius: 6px;
     font-size: 0.9rem;
-    background: var(--p-surface-0);
-    color: var(--p-text-color);
+    background: white;
+    color: #333;
     resize: vertical;
     font-family: inherit;
+    transition: border-color 0.2s;
 }
 
 .form-control:focus {
     outline: none;
-    border-color: var(--p-primary-color);
-    box-shadow: 0 0 0 2px rgba(var(--p-primary-color-rgb), 0.2);
+    border-color: #007bff;
 }
 
 .file-upload {
