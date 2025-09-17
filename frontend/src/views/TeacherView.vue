@@ -206,40 +206,140 @@
 
                             <div class="submission-files">
                                 <strong>Отправленные файлы:</strong>
-                                <div class="file-list">
-                                    <Tag
+                                <div
+                                    v-if="submission.files.length === 0"
+                                    class="no-files"
+                                >
+                                    <Message severity="info" :closable="false">
+                                        Файлы не были отправлены.
+                                    </Message>
+                                </div>
+                                <div v-else class="files-list">
+                                    <div
                                         v-for="file in submission.files"
                                         :key="file.id"
-                                        :value="file.name"
-                                        severity="secondary"
-                                    />
+                                        class="file-item"
+                                    >
+                                        <div class="file-info">
+                                            <span class="file-name"
+                                                >📄 {{ file.name }}</span
+                                            >
+                                            <div class="file-actions">
+                                                <Button
+                                                    label="📥 Скачать"
+                                                    @click="downloadFile(file)"
+                                                    size="small"
+                                                    severity="secondary"
+                                                />
+                                                <Button
+                                                    :label="
+                                                        previewingFile ===
+                                                        file.id
+                                                            ? '👁️ Скрыть'
+                                                            : '👁️ Просмотр'
+                                                    "
+                                                    @click="togglePreview(file)"
+                                                    size="small"
+                                                    severity="secondary"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <!-- File Preview -->
+                                        <div
+                                            v-if="previewingFile === file.id"
+                                            class="file-preview"
+                                        >
+                                            <div class="preview-header">
+                                                <h5>
+                                                    Просмотр: {{ file.name }}
+                                                </h5>
+                                            </div>
+                                            <div class="preview-content">
+                                                <div
+                                                    v-if="loadingPreview"
+                                                    class="loading-preview"
+                                                >
+                                                    <ProgressSpinner />
+                                                    <p>Загружаем просмотр...</p>
+                                                </div>
+                                                <div
+                                                    v-else-if="previewError"
+                                                    class="preview-error"
+                                                >
+                                                    <Message
+                                                        severity="error"
+                                                        :closable="false"
+                                                    >
+                                                        Не удалось загрузить
+                                                        просмотр. Попробуйте
+                                                        скачать файл.
+                                                    </Message>
+                                                </div>
+                                                <pre
+                                                    v-else
+                                                    class="code-preview"
+                                                    >{{
+                                                        filePreviewContent
+                                                    }}</pre
+                                                >
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="feedback-section">
                                 <div class="feedback-actions">
                                     <strong>Обратная связь:</strong>
-                                    <div class="flex gap-2">
+                                </div>
+
+                                <div class="feedback-form">
+                                    <Textarea
+                                        v-model="
+                                            feedbackMessages[submission.id]
+                                        "
+                                        rows="3"
+                                        placeholder="Добавьте комментарий к оценке (необязательно)"
+                                        class="feedback-textarea"
+                                    />
+                                    <div class="feedback-buttons">
                                         <Button
-                                            label="✅ Принять"
+                                            label="✅ Принять с этим комментарием"
                                             severity="success"
                                             size="small"
                                             @click="
-                                                openFeedbackModal(
+                                                submitDirectFeedback(
                                                     submission.id,
                                                     1,
                                                 )
                                             "
+                                            :loading="
+                                                submittingFeedback ===
+                                                submission.id
+                                            "
+                                            :disabled="
+                                                submittingFeedback ===
+                                                submission.id
+                                            "
                                         />
                                         <Button
-                                            label="❌ Отклонить"
+                                            label="❌ Отклонить с этим комментарием"
                                             severity="danger"
                                             size="small"
                                             @click="
-                                                openFeedbackModal(
+                                                submitDirectFeedback(
                                                     submission.id,
                                                     0,
                                                 )
+                                            "
+                                            :loading="
+                                                submittingFeedback ===
+                                                submission.id
+                                            "
+                                            :disabled="
+                                                submittingFeedback ===
+                                                submission.id
                                             "
                                         />
                                     </div>
@@ -303,71 +403,11 @@
                     </template>
                     <template #footer>
                         <div class="submission-actions">
-                            <Button
-                                label="Подробности"
-                                @click="
-                                    $router.push(`/submission/${submission.id}`)
-                                "
-                                icon="pi pi-info-circle"
-                                size="small"
-                                severity="secondary"
-                            />
+                            <!-- Actions can be added here if needed -->
                         </div>
                     </template>
                 </Card>
             </div>
-        </Dialog>
-
-        <!-- Feedback Modal -->
-        <Dialog
-            v-model:visible="showFeedbackModal"
-            modal
-            :header="
-                feedbackForm.grade === 1
-                    ? '✅ Принять работу'
-                    : '❌ Отклонить работу'
-            "
-            :style="{ width: '500px' }"
-            @hide="closeFeedbackModal"
-        >
-            <form @submit.prevent="submitFeedback" class="p-fluid">
-                <div class="field mb-4">
-                    <FloatLabel>
-                        <Textarea
-                            id="feedback-message"
-                            v-model="feedbackForm.message"
-                            rows="4"
-                        />
-                        <label for="feedback-message"
-                            >Сообщение (необязательно)</label
-                        >
-                    </FloatLabel>
-                </div>
-
-                <div class="flex justify-content-end gap-2">
-                    <Button
-                        label="Отмена"
-                        severity="secondary"
-                        @click="closeFeedbackModal"
-                        type="button"
-                    />
-                    <Button
-                        :label="
-                            submittingFeedback
-                                ? 'Отправляем...'
-                                : feedbackForm.grade === 1
-                                  ? 'Принять'
-                                  : 'Отклонить'
-                        "
-                        :severity="
-                            feedbackForm.grade === 1 ? 'success' : 'danger'
-                        "
-                        type="submit"
-                        :loading="submittingFeedback"
-                        :disabled="submittingFeedback"
-                    />
-                </div>
-            </form>
         </Dialog>
     </div>
 </template>
@@ -377,7 +417,7 @@ import { ref, onMounted, computed } from "vue";
 import { useToast } from "primevue/usetoast";
 import { useRouter } from "vue-router";
 import { apiService } from "../api";
-import type { Problem, Submission, CreateProblem } from "../types";
+import type { Problem, Submission, CreateProblem, FileInfo } from "../types";
 
 // Router and Toast
 const router = useRouter();
@@ -391,19 +431,17 @@ const selectedProblemId = ref<number | null>(null);
 const loading = ref(true);
 const creating = ref(false);
 const showCreateProblem = ref(false);
-const showFeedbackModal = ref(false);
-const submittingFeedback = ref(false);
+const submittingFeedback = ref<number | null>(null);
 const showSubmissionsDialog = ref(false);
+const feedbackMessages = ref<Record<number, string>>({});
+const previewingFile = ref<number | null>(null);
+const filePreviewContent = ref("");
+const loadingPreview = ref(false);
+const previewError = ref(false);
 
 const newProblem = ref<CreateProblem>({
     name: "",
     desc: "",
-});
-
-const feedbackForm = ref({
-    submissionId: 0,
-    grade: 0,
-    message: "",
 });
 
 // Computed
@@ -475,40 +513,20 @@ const viewProblemSubmissions = (problemId: number) => {
     showSubmissionsDialog.value = true;
 };
 
-const openFeedbackModal = (submissionId: number, grade: number) => {
-    feedbackForm.value = {
-        submissionId,
-        grade,
-        message: "",
-    };
-    showFeedbackModal.value = true;
-};
-
-const closeFeedbackModal = () => {
-    showFeedbackModal.value = false;
-    feedbackForm.value = {
-        submissionId: 0,
-        grade: 0,
-        message: "",
-    };
-};
-
-const submitFeedback = async () => {
+const submitDirectFeedback = async (submissionId: number, grade: number) => {
     try {
-        submittingFeedback.value = true;
+        submittingFeedback.value = submissionId;
         const feedbackData = {
-            grade: feedbackForm.value.grade,
-            message: feedbackForm.value.message.trim() || undefined,
+            grade: grade,
+            message: feedbackMessages.value[submissionId]?.trim() || undefined,
         };
-        await apiService.createFeedback(
-            feedbackForm.value.submissionId,
-            feedbackData,
-        );
+        await apiService.createFeedback(submissionId, feedbackData);
         showMessage(
-            `Оценка "${feedbackForm.value.grade === 1 ? "принято" : "отклонено"}" успешно добавлена!`,
+            `Оценка "${grade === 1 ? "принято" : "отклонено"}" успешно добавлена!`,
             "success",
         );
-        closeFeedbackModal();
+        // Clear the feedback message for this submission
+        feedbackMessages.value[submissionId] = "";
         await loadData(); // Reload to get updated feedback
         // Update the selected submissions if viewing them
         if (selectedProblemId.value) {
@@ -518,8 +536,58 @@ const submitFeedback = async () => {
         showMessage("Не удалось добавить оценку", "error");
         console.error("Error giving feedback:", error);
     } finally {
-        submittingFeedback.value = false;
+        submittingFeedback.value = null;
     }
+};
+
+const downloadFile = async (file: FileInfo) => {
+    try {
+        const blob = await apiService.downloadFile(file.hash);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error("Error downloading file:", err);
+        showMessage("Не удалось скачать файл", "error");
+    }
+};
+
+const togglePreview = async (file: FileInfo) => {
+    if (previewingFile.value === file.id) {
+        // If this file is already being previewed, close it
+        closePreview();
+    } else {
+        // If this file is not being previewed, preview it
+        await previewFile(file);
+    }
+};
+
+const previewFile = async (file: FileInfo) => {
+    try {
+        previewingFile.value = file.id;
+        loadingPreview.value = true;
+        previewError.value = false;
+
+        const blob = await apiService.downloadFile(file.hash);
+        const text = await blob.text();
+        filePreviewContent.value = text;
+    } catch (err) {
+        console.error("Error previewing file:", err);
+        previewError.value = true;
+    } finally {
+        loadingPreview.value = false;
+    }
+};
+
+const closePreview = () => {
+    previewingFile.value = null;
+    filePreviewContent.value = "";
+    previewError.value = false;
 };
 
 const getSubmissionCount = (problemId: number): number => {
@@ -688,10 +756,98 @@ onMounted(() => {
     color: var(--p-text-color);
 }
 
-.file-list {
+.files-list {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.file-item {
+    border: 1px solid var(--p-surface-border);
+    border-radius: var(--p-border-radius);
+    padding: 1rem;
+    background: var(--p-surface-50);
+}
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.file-name {
+    font-weight: 500;
+    color: var(--p-text-color);
+    flex: 1;
+}
+
+.file-actions {
+    display: flex;
     gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.file-preview {
+    margin-top: 1rem;
+    border: 1px solid var(--p-surface-border);
+    border-radius: var(--p-border-radius);
+    background: var(--p-surface-0);
+    overflow: hidden;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--p-surface-100);
+    border-bottom: 1px solid var(--p-surface-border);
+}
+
+.preview-header h5 {
+    margin: 0;
+    color: var(--p-text-color);
+    font-size: 0.9rem;
+}
+
+.preview-content {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.loading-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    gap: 0.5rem;
+}
+
+.loading-preview p {
+    margin: 0;
+    color: var(--p-text-muted-color);
+    font-size: 0.9rem;
+}
+
+.preview-error {
+    padding: 1rem;
+}
+
+.code-preview {
+    background: var(--p-surface-0);
+    padding: 1rem;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--p-text-color);
+}
+
+.no-files {
     margin-top: 0.5rem;
 }
 
@@ -754,6 +910,23 @@ onMounted(() => {
     margin-top: 0.75rem;
 }
 
+.feedback-form {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.feedback-textarea {
+    width: 100%;
+}
+
+.feedback-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
 .submission-actions {
     display: flex;
     gap: 0.5rem;
@@ -790,6 +963,20 @@ onMounted(() => {
     .problem-actions,
     .submission-actions {
         flex-direction: column;
+    }
+
+    .feedback-buttons {
+        flex-direction: column;
+    }
+
+    .file-info {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    .file-actions {
+        justify-content: flex-start;
     }
 
     .teacher-view {
