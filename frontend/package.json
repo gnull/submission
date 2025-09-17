@@ -10,9 +10,12 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@primeuix/themes": "^1.2.3",
+    "axios": "^1.6.2",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.3.9",
     "vue": "^3.3.8",
-    "vue-router": "^4.2.5",
-    "axios": "^1.6.2"
+    "vue-router": "^4.2.5"
   },
   "devDependencies": {
     "@types/node": "^20.9.0",
