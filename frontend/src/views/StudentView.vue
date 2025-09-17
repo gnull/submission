@@ -87,7 +87,7 @@
                                         ? 'Открыть и переотправить'
                                         : 'Открыть задачу'
                                 "
-                                @click="$router.push(`/problem/${problem.id}`)"
+                                @click="openProblemDialog(problem)"
                                 icon="pi pi-external-link"
                                 class="p-button-primary"
                             />
@@ -103,6 +103,142 @@
                 </Card>
             </div>
         </div>
+
+        <!-- Problem Details and Submission Dialog -->
+        <Dialog
+            v-model:visible="showProblemDialog"
+            :header="`${selectedProblem?.name || 'Задача'}`"
+            modal
+            :style="{ width: '90vw', maxWidth: '900px' }"
+            :maximizable="true"
+        >
+            <div v-if="selectedProblem" class="problem-dialog-content">
+                <!-- Problem Description -->
+                <div class="problem-description-section">
+                    <h3>Описание задачи</h3>
+                    <div class="problem-description-text">
+                        {{ selectedProblem.desc }}
+                    </div>
+                </div>
+
+                <!-- Submission Form -->
+                <div class="submission-form-section">
+                    <h3>Отправить решение</h3>
+
+                    <!-- Validation Error -->
+                    <Message
+                        v-if="submissionValidationError"
+                        severity="error"
+                        :closable="true"
+                        @close="submissionValidationError = ''"
+                    >
+                        {{ submissionValidationError }}
+                    </Message>
+
+                    <!-- Success Message -->
+                    <Message
+                        v-if="submissionSuccessMessage"
+                        severity="success"
+                        :closable="true"
+                        @close="submissionSuccessMessage = ''"
+                    >
+                        {{ submissionSuccessMessage }}
+                    </Message>
+
+                    <form
+                        @submit.prevent="submitSolution"
+                        class="submission-form"
+                    >
+                        <div class="form-group">
+                            <label class="form-label"
+                                >Комментарий (необязательно)</label
+                            >
+                            <textarea
+                                v-model="submissionComment"
+                                class="form-control"
+                                rows="3"
+                                placeholder="Добавьте комментарии к вашему решению..."
+                            ></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Загрузить файлы *</label>
+                            <div class="file-upload">
+                                <input
+                                    ref="fileInput"
+                                    type="file"
+                                    multiple
+                                    @change="handleFileSelect"
+                                    class="file-input"
+                                    accept=".py,.js,.java,.cpp,.c,.h,.txt,.md"
+                                />
+                                <div
+                                    class="file-upload-label"
+                                    @click="fileInput?.click()"
+                                >
+                                    <span
+                                        v-if="
+                                            selectedSubmissionFiles.length === 0
+                                        "
+                                    >
+                                        📁 Выберите файлы для загрузки
+                                    </span>
+                                    <span v-else>
+                                        Выбрано файлов:
+                                        {{ selectedSubmissionFiles.length }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="help-text">
+                                Пожалуйста, выберите хотя бы один файл для
+                                отправки решения.
+                            </div>
+                            <div
+                                v-if="selectedSubmissionFiles.length > 0"
+                                class="selected-files"
+                            >
+                                <div
+                                    v-for="(
+                                        file, index
+                                    ) in selectedSubmissionFiles"
+                                    :key="index"
+                                    class="file-item-upload"
+                                >
+                                    <span class="file-name">{{
+                                        file.name
+                                    }}</span>
+                                    <button
+                                        type="button"
+                                        @click="removeSubmissionFile(index)"
+                                        class="file-remove"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <Button
+                                type="submit"
+                                :label="
+                                    submittingSolution
+                                        ? 'Отправляем...'
+                                        : selectedSubmissionFiles.length === 0
+                                          ? 'Выберите файлы для отправки'
+                                          : 'Отправить решение'
+                                "
+                                :disabled="
+                                    submittingSolution ||
+                                    selectedSubmissionFiles.length === 0
+                                "
+                                severity="success"
+                            />
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </Dialog>
 
         <!-- My Submissions Dialog -->
         <Dialog
@@ -336,6 +472,16 @@ const filePreviewContent = ref("");
 const loadingPreview = ref(false);
 const previewError = ref(false);
 
+// Problem dialog and submission form state
+const showProblemDialog = ref(false);
+const selectedProblem = ref<Problem | null>(null);
+const submissionComment = ref("");
+const selectedSubmissionFiles = ref<File[]>([]);
+const submittingSolution = ref(false);
+const submissionValidationError = ref("");
+const submissionSuccessMessage = ref("");
+const fileInput = ref<HTMLInputElement>();
+
 // Computed properties
 const acceptedProblems = computed(
     () => problemsWithStats.value.filter((p) => p.accepted).length,
@@ -453,6 +599,89 @@ const showMessage = (
     setTimeout(() => {
         message.value = "";
     }, 5000);
+};
+
+const openProblemDialog = (problem: ProblemWithStats) => {
+    selectedProblem.value = problem as Problem;
+    showProblemDialog.value = true;
+    // Reset form state when opening dialog
+    submissionComment.value = "";
+    selectedSubmissionFiles.value = [];
+    submissionValidationError.value = "";
+    submissionSuccessMessage.value = "";
+    if (fileInput.value) {
+        fileInput.value.value = "";
+    }
+};
+
+const handleFileSelect = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files) {
+        selectedSubmissionFiles.value = Array.from(target.files);
+        // Clear validation error when files are selected
+        if (selectedSubmissionFiles.value.length > 0) {
+            submissionValidationError.value = "";
+        }
+    }
+};
+
+const removeSubmissionFile = (index: number) => {
+    selectedSubmissionFiles.value.splice(index, 1);
+};
+
+const submitSolution = async () => {
+    // Clear any previous validation errors
+    submissionValidationError.value = "";
+    submissionSuccessMessage.value = "";
+
+    if (selectedSubmissionFiles.value.length === 0) {
+        submissionValidationError.value =
+            "⚠️ Пожалуйста, выберите хотя бы один файл для отправки решения";
+        // Clear validation error after 8 seconds
+        setTimeout(() => {
+            submissionValidationError.value = "";
+        }, 8000);
+        return;
+    }
+
+    if (!selectedProblem.value) {
+        submissionValidationError.value = "Ошибка: задача не выбрана";
+        return;
+    }
+
+    try {
+        submittingSolution.value = true;
+        await apiService.createSubmission(
+            selectedProblem.value.id,
+            submissionComment.value,
+            selectedSubmissionFiles.value,
+        );
+
+        submissionSuccessMessage.value = "Решение успешно отправлено!";
+        submissionComment.value = "";
+        selectedSubmissionFiles.value = [];
+        if (fileInput.value) {
+            fileInput.value.value = "";
+        }
+
+        // Reload data to update stats
+        await loadData();
+
+        setTimeout(() => {
+            submissionSuccessMessage.value = "";
+            showProblemDialog.value = false;
+        }, 3000);
+    } catch (err) {
+        submissionValidationError.value =
+            "Не удалось отправить решение. Попробуйте ещё раз.";
+        // Clear validation error after 5 seconds
+        setTimeout(() => {
+            submissionValidationError.value = "";
+        }, 5000);
+        console.error("Error submitting solution:", err);
+    } finally {
+        submittingSolution.value = false;
+    }
 };
 
 // Lifecycle
@@ -779,6 +1008,159 @@ onMounted(() => {
     justify-content: flex-end;
 }
 
+.problem-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.problem-description-section h3 {
+    color: var(--p-text-color);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.problem-description-text {
+    background: var(--p-surface-100);
+    padding: 1.5rem;
+    border-radius: var(--p-border-radius);
+    border-left: 4px solid var(--p-primary-color);
+    color: var(--p-text-color);
+    line-height: 1.8;
+    font-size: 1rem;
+    white-space: pre-wrap;
+}
+
+.submission-form-section {
+    border-top: 2px solid var(--p-surface-border);
+    padding-top: 1.5rem;
+}
+
+.submission-form-section h3 {
+    color: var(--p-text-color);
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+}
+
+.submission-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--p-text-color);
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--p-surface-border);
+    border-radius: var(--p-border-radius);
+    font-size: 0.9rem;
+    background: var(--p-surface-0);
+    color: var(--p-text-color);
+    resize: vertical;
+    font-family: inherit;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--p-primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--p-primary-color-rgb), 0.2);
+}
+
+.file-upload {
+    position: relative;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-upload-label {
+    display: block;
+    padding: 1rem;
+    border: 2px dashed var(--p-surface-border);
+    border-radius: var(--p-border-radius);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    color: var(--p-text-muted-color);
+    background: var(--p-surface-50);
+}
+
+.file-upload-label:hover {
+    border-color: var(--p-primary-color);
+    color: var(--p-primary-color);
+    background: var(--p-surface-100);
+}
+
+.help-text {
+    font-size: 0.8rem;
+    color: var(--p-text-muted-color);
+    font-style: italic;
+}
+
+.selected-files {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.file-item-upload {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--p-surface-100);
+    border: 1px solid var(--p-surface-border);
+    border-radius: var(--p-border-radius);
+}
+
+.file-item-upload .file-name {
+    font-size: 0.9rem;
+    color: var(--p-text-color);
+    flex: 1;
+}
+
+.file-remove {
+    background: none;
+    border: none;
+    color: var(--p-red-500);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.file-remove:hover {
+    background: var(--p-red-500);
+    color: white;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid var(--p-surface-border);
+}
+
 @media (max-width: 768px) {
     .header {
         flex-direction: column;
@@ -824,6 +1206,24 @@ onMounted(() => {
 
     .file-actions {
         justify-content: flex-start;
+    }
+
+    .problem-dialog-content {
+        gap: 1.5rem;
+    }
+
+    .problem-description-text {
+        padding: 1rem;
+    }
+
+    .file-item-upload {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+
+    .form-actions {
+        justify-content: stretch;
     }
 }
 </style>
