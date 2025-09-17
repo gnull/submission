@@ -14,6 +14,7 @@ Build frontend:
 ```sh
 # Run Vue.js frontend
 cd frontend
+npm install
 npm run build
 ```
 
