@@ -772,10 +772,12 @@ onMounted(() => {
 
 .problem-accepted {
     border-left: 4px solid var(--p-green-500);
+    background: linear-gradient(135deg, #f0f9f0 0%, #e8f5e8 100%);
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
 }
 
 .problem-card:not(.problem-accepted) {
-    border-left: 4px solid var(--p-primary-color);
+    border-left: 4px solid #64748b;
 }
 
 .problem-header {
@@ -792,6 +794,11 @@ onMounted(() => {
     flex: 1;
 }
 
+.problem-accepted .problem-header h3 {
+    color: #16a34a;
+    font-weight: 600;
+}
+
 .problem-badges {
     display: flex;
     flex-direction: column;
@@ -803,6 +810,28 @@ onMounted(() => {
     color: var(--p-text-muted-color);
     line-height: 1.5;
     margin-bottom: 0;
+}
+
+.problem-accepted .problem-description {
+    color: #15803d;
+}
+
+.problem-accepted .problem-badges .p-tag {
+    background: #ffffff !important;
+    color: #374151 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+.problem-accepted .problem-actions .p-button-secondary {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    color: #374151 !important;
+}
+
+.problem-accepted .problem-actions .p-button-secondary:hover {
+    background: #f9fafb !important;
+    border: 1px solid #9ca3af !important;
+    color: #1f2937 !important;
 }
 
 .problem-actions {
