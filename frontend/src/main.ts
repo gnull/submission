@@ -15,6 +15,12 @@ import DataView from "primevue/dataview";
 import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import FloatLabel from "primevue/floatlabel";
+import Toast from "primevue/toast";
+import ToastService from "primevue/toastservice";
+import Panel from "primevue/panel";
+import Chip from "primevue/chip";
+import Badge from "primevue/badge";
+import Divider from "primevue/divider";
 
 // PrimeVue CSS
 import "primeicons/primeicons.css";
@@ -27,6 +33,7 @@ app.use(PrimeVue, {
     preset: Aura,
   },
 });
+app.use(ToastService);
 
 // Register PrimeVue components globally
 app.component("Card", Card);
@@ -39,5 +46,10 @@ app.component("DataView", DataView);
 app.component("InputText", InputText);
 app.component("Textarea", Textarea);
 app.component("FloatLabel", FloatLabel);
+app.component("Toast", Toast);
+app.component("Panel", Panel);
+app.component("Chip", Chip);
+app.component("Badge", Badge);
+app.component("Divider", Divider);
 
 app.mount("#app");
