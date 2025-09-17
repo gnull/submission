@@ -434,19 +434,6 @@
                             </div>
                         </div>
                     </template>
-                    <template #footer>
-                        <div class="submission-actions">
-                            <Button
-                                label="Подробности"
-                                @click="
-                                    $router.push(`/submission/${submission.id}`)
-                                "
-                                icon="pi pi-info-circle"
-                                size="small"
-                                severity="secondary"
-                            />
-                        </div>
-                    </template>
                 </Card>
             </div>
         </Dialog>
