@@ -1,594 +1,591 @@
 <template>
-  <div class="student-view">
-    <div class="header">
-      <h1>Панель ученика</h1>
-      <div class="stats">
-        <div class="stat-item">
-          <span class="stat-number">{{ acceptedProblems }}</span>
-          <span class="stat-label">Принято</span>
+    <div class="student-view">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>Панель ученика</h1>
+            <div class="stats">
+                <Card class="stat-card">
+                    <template #content>
+                        <div class="stat-item">
+                            <span class="stat-number">{{
+                                acceptedProblems
+                            }}</span>
+                            <span class="stat-label">Принято</span>
+                        </div>
+                    </template>
+                </Card>
+                <Card class="stat-card">
+                    <template #content>
+                        <div class="stat-item">
+                            <span class="stat-number">{{ totalAttempts }}</span>
+                            <span class="stat-label">Всего попыток</span>
+                        </div>
+                    </template>
+                </Card>
+            </div>
         </div>
-        <div class="stat-item">
-          <span class="stat-number">{{ totalAttempts }}</span>
-          <span class="stat-label">Всего попыток</span>
-        </div>
-      </div>
-    </div>
 
-    <!-- Success/Error Messages -->
-    <div v-if="message" :class="messageClass" class="alert">
-      {{ message }}
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="loading" class="loading">
-      Загружаем задачи...
-    </div>
-
-    <!-- Problems List -->
-    <div v-if="!loading" class="problems-section">
-      <h2>Доступные задачи</h2>
-      <div v-if="problemsWithStats.length === 0" class="empty-state">
-        <p>Пока нет доступных задач. Заходите позже!</p>
-      </div>
-      <div v-else class="problems-grid">
-        <div
-          v-for="problem in problemsWithStats"
-          :key="problem.id"
-          :class="['problem-card', { 'problem-accepted': problem.accepted }]"
+        <!-- Success/Error Messages -->
+        <Message
+            v-if="message"
+            :severity="messageType"
+            :closable="true"
+            @close="message = ''"
         >
-          <div class="problem-header">
-            <h3>{{ problem.name }}</h3>
-            <div class="problem-badges">
-              <span v-if="problem.accepted" class="badge-accepted">✅ Принято</span>
-              <span class="problem-attempts">{{ problem.attempts }} попыток</span>
-            </div>
-          </div>
-          <p class="problem-description">{{ truncateText(problem.desc, 150) }}</p>
-          <div class="problem-actions">
-            <router-link :to="`/problem/${problem.id}`" class="btn btn-primary">
-              {{ problem.attempts > 0 ? 'Открыть и переотправить' : 'Открыть задачу' }}
-            </router-link>
-            <button
-              v-if="problem.attempts > 0"
-              @click="viewSubmissions(problem.id)"
-              class="btn btn-secondary"
+            {{ message }}
+        </Message>
+
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-container">
+            <ProgressSpinner />
+            <p>Загружаем задачи...</p>
+        </div>
+
+        <!-- Problems List -->
+        <div v-if="!loading" class="problems-section">
+            <h2>Доступные задачи</h2>
+            <DataView
+                :value="problemsWithStats"
+                layout="grid"
+                :rows="12"
+                paginator
+                :emptyMessage="'Пока нет доступных задач. Заходите позже!'"
             >
-              Мои работы
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- My Submissions Modal -->
-    <div v-if="showSubmissions" class="modal-overlay" @click="closeSubmissions">
-      <div class="modal" @click.stop>
-        <div class="modal-header">
-          <h2>Мои работы по задаче "{{ selectedProblemName }}"</h2>
-          <button @click="closeSubmissions" class="btn-close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div v-if="selectedSubmissions.length === 0" class="empty-state">
-            <p>Работы не найдены.</p>
-          </div>
-          <div v-else class="submissions-list">
-            <div
-              v-for="submission in selectedSubmissions"
-              :key="submission.id"
-              class="submission-card"
-            >
-              <div class="submission-header">
-                <h4>Работа #{{ submission.id }}</h4>
-                <div class="submission-status">
-                  <span :class="submission.status.accepted ? 'status-accepted' : 'status-pending'">
-                    {{ submission.status.accepted ? '✅ Принято' : '❌ Не принято' }}
-                  </span>
-                </div>
-              </div>
-
-              <p class="submission-comment">
-                <strong>Комментарий:</strong> {{ submission.comment || 'Комментарий не добавлен' }}
-              </p>
-
-              <div class="submission-files">
-                <strong>Отправленные файлы:</strong>
-                <div class="file-list">
-                  <span v-for="file in submission.files" :key="file.id" class="file-tag">
-                    {{ file.name }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="submission-feedback" v-if="submission.status.feedbacks.length > 0">
-                <strong>Обратная связь:</strong>
-                <div class="feedback-list">
-                  <div
-                    v-for="feedback in submission.status.feedbacks"
-                    :key="feedback.id"
-                    :class="feedback.grade === 1 ? 'feedback-accept' : 'feedback-reject'"
-                    class="feedback-item"
-                  >
-                    <div class="feedback-grade">
-                      {{ feedback.grade === 1 ? 'Принято' : 'Отклонено' }}
+                <template #grid="slotProps">
+                    <div class="problems-grid">
+                        <Card
+                            v-for="problem in slotProps.items"
+                            :key="problem.id"
+                            :class="{ 'problem-accepted': problem.accepted }"
+                            class="problem-card"
+                        >
+                            <template #header>
+                                <div class="problem-header">
+                                    <h3>{{ problem.name }}</h3>
+                                    <div class="problem-badges">
+                                        <Tag
+                                            v-if="problem.accepted"
+                                            severity="success"
+                                            icon="pi pi-check"
+                                            value="Принято"
+                                        />
+                                        <Tag
+                                            severity="secondary"
+                                            :value="`${problem.attempts} попыток`"
+                                        />
+                                    </div>
+                                </div>
+                            </template>
+                            <template #content>
+                                <p class="problem-description">
+                                    {{ truncateText(problem.desc, 150) }}
+                                </p>
+                            </template>
+                            <template #footer>
+                                <div class="problem-actions">
+                                    <Button
+                                        :label="
+                                            problem.attempts > 0
+                                                ? 'Открыть и переотправить'
+                                                : 'Открыть задачу'
+                                        "
+                                        @click="
+                                            $router.push(
+                                                `/problem/${problem.id}`,
+                                            )
+                                        "
+                                        icon="pi pi-external-link"
+                                        class="p-button-primary"
+                                    />
+                                    <Button
+                                        v-if="problem.attempts > 0"
+                                        label="Мои работы"
+                                        @click="viewSubmissions(problem.id)"
+                                        icon="pi pi-list"
+                                        severity="secondary"
+                                    />
+                                </div>
+                            </template>
+                        </Card>
                     </div>
-                    <div v-if="feedback.message" class="feedback-message">
-                      {{ feedback.message }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="no-feedback">
-                <em>Обратной связи пока нет - ждём проверки</em>
-              </div>
+                </template>
+            </DataView>
+        </div>
 
-              <div class="submission-actions">
-                <router-link :to="`/submission/${submission.id}`" class="btn btn-sm btn-secondary">
-                  Подробности
-                </router-link>
-              </div>
+        <!-- My Submissions Dialog -->
+        <Dialog
+            v-model:visible="showSubmissions"
+            :header="`Мои работы по задаче &quot;${selectedProblemName}&quot;`"
+            modal
+            :style="{ width: '90vw', maxWidth: '800px' }"
+            :maximizable="true"
+        >
+            <div v-if="selectedSubmissions.length === 0" class="empty-state">
+                <Message severity="info" :closable="false">
+                    Работы не найдены.
+                </Message>
             </div>
-          </div>
-        </div>
-      </div>
+            <div v-else class="submissions-list">
+                <Card
+                    v-for="submission in selectedSubmissions"
+                    :key="submission.id"
+                    class="submission-card"
+                >
+                    <template #header>
+                        <div class="submission-header">
+                            <h4>Работа #{{ submission.id }}</h4>
+                            <Tag
+                                :severity="
+                                    submission.status.accepted
+                                        ? 'success'
+                                        : 'danger'
+                                "
+                                :value="
+                                    submission.status.accepted
+                                        ? 'Принято'
+                                        : 'Не принято'
+                                "
+                                :icon="
+                                    submission.status.accepted
+                                        ? 'pi pi-check'
+                                        : 'pi pi-times'
+                                "
+                            />
+                        </div>
+                    </template>
+                    <template #content>
+                        <div class="submission-details">
+                            <div class="submission-comment">
+                                <strong>Комментарий:</strong>
+                                {{
+                                    submission.comment ||
+                                    "Комментарий не добавлен"
+                                }}
+                            </div>
+
+                            <div class="submission-files">
+                                <strong>Отправленные файлы:</strong>
+                                <div class="file-list">
+                                    <Tag
+                                        v-for="file in submission.files"
+                                        :key="file.id"
+                                        :value="file.name"
+                                        severity="secondary"
+                                    />
+                                </div>
+                            </div>
+
+                            <div
+                                class="submission-feedback"
+                                v-if="submission.status.feedbacks.length > 0"
+                            >
+                                <strong>Обратная связь:</strong>
+                                <div class="feedback-list">
+                                    <Card
+                                        v-for="feedback in submission.status
+                                            .feedbacks"
+                                        :key="feedback.id"
+                                        :class="
+                                            feedback.grade === 1
+                                                ? 'feedback-accept'
+                                                : 'feedback-reject'
+                                        "
+                                        class="feedback-item"
+                                    >
+                                        <template #content>
+                                            <div class="feedback-content">
+                                                <Tag
+                                                    :severity="
+                                                        feedback.grade === 1
+                                                            ? 'success'
+                                                            : 'danger'
+                                                    "
+                                                    :value="
+                                                        feedback.grade === 1
+                                                            ? 'Принято'
+                                                            : 'Отклонено'
+                                                    "
+                                                    :icon="
+                                                        feedback.grade === 1
+                                                            ? 'pi pi-check'
+                                                            : 'pi pi-times'
+                                                    "
+                                                />
+                                                <div
+                                                    v-if="feedback.message"
+                                                    class="feedback-message"
+                                                >
+                                                    {{ feedback.message }}
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </Card>
+                                </div>
+                            </div>
+                            <div v-else class="no-feedback">
+                                <Message severity="warn" :closable="false">
+                                    Обратной связи пока нет - ждём проверки
+                                </Message>
+                            </div>
+                        </div>
+                    </template>
+                    <template #footer>
+                        <div class="submission-actions">
+                            <Button
+                                label="Подробности"
+                                @click="
+                                    $router.push(`/submission/${submission.id}`)
+                                "
+                                icon="pi pi-info-circle"
+                                size="small"
+                                severity="secondary"
+                            />
+                        </div>
+                    </template>
+                </Card>
+            </div>
+        </Dialog>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { apiService } from '../api'
-import type { ProblemWithStats, Submission, Problem } from '../types'
+import { ref, onMounted, computed } from "vue";
+import { apiService } from "../api";
+import type { ProblemWithStats, Submission, Problem } from "../types";
 
 // Reactive state
-const problemsWithStats = ref<ProblemWithStats[]>([])
-const allSubmissions = ref<Submission[]>([])
-const selectedSubmissions = ref<Submission[]>([])
-const selectedProblemName = ref('')
-const loading = ref(true)
-const showSubmissions = ref(false)
-const message = ref('')
-const messageType = ref<'success' | 'error'>('success')
+const problemsWithStats = ref<ProblemWithStats[]>([]);
+const allSubmissions = ref<Submission[]>([]);
+const selectedSubmissions = ref<Submission[]>([]);
+const selectedProblemName = ref("");
+const loading = ref(true);
+const showSubmissions = ref(false);
+const message = ref("");
+const messageType = ref<"success" | "error" | "info" | "warn">("success");
 
 // Computed properties
-const acceptedProblems = computed(() =>
-  problemsWithStats.value.filter(p => p.accepted).length
-)
+const acceptedProblems = computed(
+    () => problemsWithStats.value.filter((p) => p.accepted).length,
+);
 
 const totalAttempts = computed(() =>
-  problemsWithStats.value.reduce((sum, p) => sum + p.attempts, 0)
-)
-
-const messageClass = computed(() =>
-  messageType.value === 'success' ? 'alert-success' : 'alert-error'
-)
+    problemsWithStats.value.reduce((sum, p) => sum + p.attempts, 0),
+);
 
 // Methods
 const loadData = async () => {
-  try {
-    loading.value = true
-    const [problems, submissions] = await Promise.all([
-      apiService.getProblems(),
-      apiService.getSubmissions()
-    ])
+    try {
+        loading.value = true;
+        const [problems, submissions] = await Promise.all([
+            apiService.getProblems(),
+            apiService.getSubmissions(),
+        ]);
 
-    allSubmissions.value = submissions
+        allSubmissions.value = submissions;
 
-    // Calculate stats for each problem
-    problemsWithStats.value = problems.map(problem => {
-      const problemSubmissions = submissions.filter(s => s.problem === problem.id)
-      const attempts = problemSubmissions.length
-      const accepted = problemSubmissions.some(s => s.status.accepted)
+        // Calculate stats for each problem
+        problemsWithStats.value = problems.map((problem) => {
+            const problemSubmissions = submissions.filter(
+                (s) => s.problem === problem.id,
+            );
+            const attempts = problemSubmissions.length;
+            const accepted = problemSubmissions.some((s) => s.status.accepted);
 
-      return {
-        ...problem,
-        attempts,
-        accepted,
-      }
-    })
-
-  } catch (error) {
-    showMessage('Не удалось загрузить задачи', 'error')
-    console.error('Error loading data:', error)
-  } finally {
-    loading.value = false
-  }
-}
+            return {
+                ...problem,
+                attempts,
+                accepted,
+            };
+        });
+    } catch (error) {
+        showMessage("Не удалось загрузить задачи", "error");
+        console.error("Error loading data:", error);
+    } finally {
+        loading.value = false;
+    }
+};
 
 const viewSubmissions = (problemId: number) => {
-  const problem = problemsWithStats.value.find(p => p.id === problemId)
-  if (!problem) return
+    const problem = problemsWithStats.value.find((p) => p.id === problemId);
+    if (!problem) return;
 
-  selectedProblemName.value = problem.name
-  selectedSubmissions.value = allSubmissions.value.filter(s => s.problem === problemId)
-  showSubmissions.value = true
-}
-
-const closeSubmissions = () => {
-  showSubmissions.value = false
-  selectedSubmissions.value = []
-  selectedProblemName.value = ''
-}
+    selectedProblemName.value = problem.name;
+    selectedSubmissions.value = allSubmissions.value.filter(
+        (s) => s.problem === problemId,
+    );
+    showSubmissions.value = true;
+};
 
 const truncateText = (text: string, length: number): string => {
-  if (text.length <= length) return text
-  return text.substring(0, length) + '...'
-}
+    if (text.length <= length) return text;
+    return text.substring(0, length) + "...";
+};
 
-const showMessage = (msg: string, type: 'success' | 'error') => {
-  message.value = msg
-  messageType.value = type
-  setTimeout(() => {
-    message.value = ''
-  }, 5000)
-}
+const showMessage = (
+    msg: string,
+    type: "success" | "error" | "info" | "warn",
+) => {
+    message.value = msg;
+    messageType.value = type;
+    setTimeout(() => {
+        message.value = "";
+    }, 5000);
+};
 
 // Lifecycle
 onMounted(() => {
-  loadData()
-})
+    loadData();
+});
 </script>
 
 <style scoped>
 .student-view {
-  max-width: 1200px;
-  margin: 0 auto;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--p-surface-border);
 }
 
 .header h1 {
-  color: #2c3e50;
-  margin: 0;
+    color: var(--p-text-color);
+    margin: 0;
+    font-size: 2rem;
 }
 
 .stats {
-  display: flex;
-  gap: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.stat-card {
+    min-width: 120px;
 }
 
 .stat-item {
-  text-align: center;
-  padding: 1rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-width: 100px;
+    text-align: center;
+    padding: 0.5rem;
 }
 
 .stat-number {
-  display: block;
-  font-size: 2rem;
-  font-weight: bold;
-  color: #28a745;
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--p-green-500);
+    margin-bottom: 0.25rem;
 }
 
 .stat-label {
-  display: block;
-  font-size: 0.9rem;
-  color: #6c757d;
-  margin-top: 0.25rem;
+    display: block;
+    font-size: 0.9rem;
+    color: var(--p-text-muted-color);
+}
+
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem;
+    gap: 1rem;
 }
 
 .problems-section h2 {
-  margin-bottom: 1.5rem;
-  color: #2c3e50;
+    margin-bottom: 1.5rem;
+    color: var(--p-text-color);
 }
 
 .problems-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    width: 100%;
 }
 
 .problem-card {
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #007bff;
-  transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
 }
 
 .problem-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
 }
 
 .problem-accepted {
-  border-left-color: #28a745 !important;
-  background: linear-gradient(135deg, #f8fff9 0%, #ffffff 100%);
+    border-left: 4px solid var(--p-green-500);
+}
+
+.problem-card:not(.problem-accepted) {
+    border-left: 4px solid var(--p-primary-color);
 }
 
 .problem-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
 }
 
 .problem-header h3 {
-  margin: 0;
-  color: #2c3e50;
-  flex: 1;
+    margin: 0;
+    color: var(--p-text-color);
+    flex: 1;
 }
 
 .problem-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-end;
-}
-
-.badge-accepted {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
 }
 
 .problem-description {
-  color: #666;
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
+    color: var(--p-text-muted-color);
+    line-height: 1.5;
+    margin-bottom: 0;
 }
 
 .problem-actions {
-  display: flex;
-  gap: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: #6c757d;
-}
-
-.empty-state p {
-  font-size: 1.1rem;
-}
-
-/* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e9ecef;
-  position: sticky;
-  top: 0;
-  background: white;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: #2c3e50;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #6c757d;
-}
-
-.modal-body {
-  padding: 1.5rem;
+    text-align: center;
+    padding: 2rem;
 }
 
 .submissions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .submission-card {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 8px;
-  border-left: 4px solid #6c757d;
+    margin-bottom: 1rem;
 }
 
 .submission-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    gap: 1rem;
 }
 
 .submission-header h4 {
-  margin: 0;
-  color: #2c3e50;
+    margin: 0;
+    color: var(--p-text-color);
+    flex: 1;
 }
 
-.status-accepted {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
+.submission-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.status-pending {
-  background-color: #f8d7da;
-  color: #721c24;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.submission-comment {
-  color: #666;
-  margin-bottom: 1rem;
-}
-
+.submission-comment,
 .submission-files {
-  margin-bottom: 1rem;
+    color: var(--p-text-color);
 }
 
 .file-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.file-tag {
-  background-color: #e9ecef;
-  color: #495057;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
 }
 
 .submission-feedback {
-  margin-bottom: 1rem;
+    margin-top: 1rem;
 }
 
 .feedback-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
 }
 
 .feedback-item {
-  padding: 0.75rem;
-  border-radius: 4px;
-  border-left: 3px solid;
+    border-radius: var(--p-border-radius);
 }
 
 .feedback-accept {
-  background-color: #d4edda;
-  border-left-color: #28a745;
+    border-left: 3px solid var(--p-green-500);
 }
 
 .feedback-reject {
-  background-color: #f8d7da;
-  border-left-color: #dc3545;
+    border-left: 3px solid var(--p-red-500);
 }
 
-.feedback-grade {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.feedback-accept .feedback-grade {
-  color: #155724;
-}
-
-.feedback-reject .feedback-grade {
-  color: #721c24;
+.feedback-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .feedback-message {
-  font-size: 0.9rem;
-  line-height: 1.4;
-  margin-top: 0.5rem;
-}
-
-.feedback-accept .feedback-message {
-  color: #155724;
-}
-
-.feedback-reject .feedback-message {
-  color: #721c24;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--p-text-color);
 }
 
 .no-feedback {
-  color: #6c757d;
-  font-style: italic;
-  margin-top: 0.5rem;
+    margin-top: 0.5rem;
 }
 
 .submission-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
 }
 
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
+    .header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
 
-  .stats {
-    justify-content: center;
-  }
+    .stats {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
 
-  .problems-grid {
-    grid-template-columns: 1fr;
-  }
+    .problems-grid {
+        grid-template-columns: 1fr;
+    }
 
-  .problem-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
+    .problem-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
 
-  .problem-badges {
-    align-items: flex-start;
-  }
+    .problem-badges {
+        align-items: flex-start;
+    }
 
-  .submission-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
+    .submission-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
 
-  .modal {
-    width: 95%;
-    margin: 1rem;
-  }
-
-  .modal-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-
-  .modal-header h2 {
-    text-align: center;
-  }
+    .problem-actions,
+    .submission-actions {
+        flex-direction: column;
+    }
 }
 </style>
