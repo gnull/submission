@@ -44,72 +44,64 @@
         <!-- Problems List -->
         <div v-if="!loading" class="problems-section">
             <h2>Доступные задачи</h2>
-            <DataView
-                :value="problemsWithStats"
-                layout="grid"
-                :rows="12"
-                paginator
-                :emptyMessage="'Пока нет доступных задач. Заходите позже!'"
-            >
-                <template #grid="slotProps">
-                    <div class="problems-grid">
-                        <Card
-                            v-for="problem in slotProps.items"
-                            :key="problem.id"
-                            :class="{ 'problem-accepted': problem.accepted }"
-                            class="problem-card"
-                        >
-                            <template #header>
-                                <div class="problem-header">
-                                    <h3>{{ problem.name }}</h3>
-                                    <div class="problem-badges">
-                                        <Tag
-                                            v-if="problem.accepted"
-                                            severity="success"
-                                            icon="pi pi-check"
-                                            value="Принято"
-                                        />
-                                        <Tag
-                                            severity="secondary"
-                                            :value="`${problem.attempts} попыток`"
-                                        />
-                                    </div>
-                                </div>
-                            </template>
-                            <template #content>
-                                <p class="problem-description">
-                                    {{ truncateText(problem.desc, 150) }}
-                                </p>
-                            </template>
-                            <template #footer>
-                                <div class="problem-actions">
-                                    <Button
-                                        :label="
-                                            problem.attempts > 0
-                                                ? 'Открыть и переотправить'
-                                                : 'Открыть задачу'
-                                        "
-                                        @click="
-                                            $router.push(
-                                                `/problem/${problem.id}`,
-                                            )
-                                        "
-                                        icon="pi pi-external-link"
-                                        class="p-button-primary"
-                                    />
-                                    <Button
-                                        v-if="problem.attempts > 0"
-                                        label="Мои работы"
-                                        @click="viewSubmissions(problem.id)"
-                                        icon="pi pi-list"
-                                        severity="secondary"
-                                    />
-                                </div>
-                            </template>
-                        </Card>
-                    </div>
-                </template>
-            </DataView>
+            <div v-if="problemsWithStats.length === 0" class="empty-state">
+                <Message severity="info" :closable="false">
+                    Пока нет доступных задач. Заходите позже!
+                </Message>
+            </div>
+
+            <div v-else class="problems-grid">
+                <Card
+                    v-for="problem in problemsWithStats"
+                    :key="problem.id"
+                    :class="{ 'problem-accepted': problem.accepted }"
+                    class="problem-card"
+                >
+                    <template #header>
+                        <div class="problem-header">
+                            <h3>{{ problem.name }}</h3>
+                            <div class="problem-badges">
+                                <Tag
+                                    v-if="problem.accepted"
+                                    severity="success"
+                                    icon="pi pi-check"
+                                    value="Принято"
+                                />
+                                <Tag
+                                    severity="secondary"
+                                    :value="`${problem.attempts} попыток`"
+                                />
+                            </div>
+                        </div>
+                    </template>
+                    <template #content>
+                        <p class="problem-description">
+                            {{ truncateText(problem.desc, 150) }}
+                        </p>
+                    </template>
+                    <template #footer>
+                        <div class="problem-actions">
+                            <Button
+                                :label="
+                                    problem.attempts > 0
+                                        ? 'Открыть и переотправить'
+                                        : 'Открыть задачу'
+                                "
+                                @click="$router.push(`/problem/${problem.id}`)"
+                                icon="pi pi-external-link"
+                                class="p-button-primary"
+                            />
+                            <Button
+                                v-if="problem.attempts > 0"
+                                label="Мои работы"
+                                @click="viewSubmissions(problem.id)"
+                                icon="pi pi-list"
+                                severity="secondary"
+                            />
+                        </div>
+                    </template>
+                </Card>
+            </div>
         </div>
 
         <!-- My Submissions Dialog -->
@@ -175,57 +167,61 @@
                                 </div>
                             </div>
 
-                            <div
-                                class="submission-feedback"
-                                v-if="submission.status.feedbacks.length > 0"
-                            >
-                                <strong>Обратная связь:</strong>
-                                <div class="feedback-list">
-                                    <Card
-                                        v-for="feedback in submission.status
-                                            .feedbacks"
-                                        :key="feedback.id"
-                                        :class="
-                                            feedback.grade === 1
-                                                ? 'feedback-accept'
-                                                : 'feedback-reject'
-                                        "
-                                        class="feedback-item"
-                                    >
-                                        <template #content>
-                                            <div class="feedback-content">
-                                                <Tag
-                                                    :severity="
-                                                        feedback.grade === 1
-                                                            ? 'success'
-                                                            : 'danger'
-                                                    "
-                                                    :value="
-                                                        feedback.grade === 1
-                                                            ? 'Принято'
-                                                            : 'Отклонено'
-                                                    "
-                                                    :icon="
-                                                        feedback.grade === 1
-                                                            ? 'pi pi-check'
-                                                            : 'pi pi-times'
-                                                    "
-                                                />
-                                                <div
-                                                    v-if="feedback.message"
-                                                    class="feedback-message"
-                                                >
-                                                    {{ feedback.message }}
+                            <div class="feedback-section">
+                                <div
+                                    class="feedback-container"
+                                    v-if="
+                                        submission.status.feedbacks.length > 0
+                                    "
+                                >
+                                    <strong>Обратная связь:</strong>
+                                    <div class="feedback-list">
+                                        <Card
+                                            v-for="feedback in submission.status
+                                                .feedbacks"
+                                            :key="feedback.id"
+                                            :class="
+                                                feedback.grade === 1
+                                                    ? 'feedback-accept'
+                                                    : 'feedback-reject'
+                                            "
+                                            class="feedback-item"
+                                        >
+                                            <template #content>
+                                                <div class="feedback-content">
+                                                    <Tag
+                                                        :severity="
+                                                            feedback.grade === 1
+                                                                ? 'success'
+                                                                : 'danger'
+                                                        "
+                                                        :value="
+                                                            feedback.grade === 1
+                                                                ? 'Принято'
+                                                                : 'Отклонено'
+                                                        "
+                                                        :icon="
+                                                            feedback.grade === 1
+                                                                ? 'pi pi-check'
+                                                                : 'pi pi-times'
+                                                        "
+                                                    />
+                                                    <div
+                                                        v-if="feedback.message"
+                                                        class="feedback-message"
+                                                    >
+                                                        {{ feedback.message }}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </template>
-                                    </Card>
+                                            </template>
+                                        </Card>
+                                    </div>
                                 </div>
-                            </div>
-                            <div v-else class="no-feedback">
-                                <Message severity="warn" :closable="false">
-                                    Обратной связи пока нет - ждём проверки
-                                </Message>
+                                <div v-else class="no-feedback">
+                                    <Message severity="warn" :closable="false">
+                                        Обратной связи пока нет - ждём проверки
+                                    </Message>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -467,11 +463,14 @@ onMounted(() => {
 .submissions-list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .submission-card {
-    margin-bottom: 1rem;
+    border: 1px solid var(--p-surface-border);
+    border-radius: var(--p-border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
 }
 
 .submission-header {
@@ -506,27 +505,41 @@ onMounted(() => {
     margin-top: 0.5rem;
 }
 
-.submission-feedback {
+.feedback-section {
     margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--p-surface-300);
+}
+
+.feedback-container {
+    background: var(--p-surface-0);
+    border: 1px solid var(--p-surface-200);
+    border-radius: var(--p-border-radius);
+    padding: 1rem;
+    margin-top: 0.75rem;
 }
 
 .feedback-list {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
 }
 
 .feedback-item {
     border-radius: var(--p-border-radius);
+    border: 1px solid var(--p-surface-200);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .feedback-accept {
-    border-left: 3px solid var(--p-green-500);
+    border-left: 4px solid var(--p-green-500);
+    background: var(--p-green-50);
 }
 
 .feedback-reject {
-    border-left: 3px solid var(--p-red-500);
+    border-left: 4px solid var(--p-red-500);
+    background: var(--p-red-50);
 }
 
 .feedback-content {
@@ -542,7 +555,7 @@ onMounted(() => {
 }
 
 .no-feedback {
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
 }
 
 .submission-actions {
