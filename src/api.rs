@@ -203,6 +203,13 @@ async fn create_feedback(
 async fn get_file(db: web::Data<DbState>, path: web::Path<String>) -> Result<impl Responder> {
     let hash = path.into_inner();
 
+    let sha256_length = 64;
+    let chars_good = hash.chars().all(|c| c.is_digit(16));
+    if !chars_good || hash.len() != sha256_length {
+        error!("{} is not a sha256 hash", &hash);
+        return Err(SubmError::FileNotFound.into());
+    }
+
     let db = db.lock().await;
     match db.get_file_content(&hash).await {
         Ok(content) => Ok(HttpResponse::Ok()
