@@ -22,6 +22,8 @@ import Chip from "primevue/chip";
 import Badge from "primevue/badge";
 import Divider from "primevue/divider";
 
+import StatCard from './views/StatCard.vue'
+
 // PrimeVue CSS
 import "primeicons/primeicons.css";
 
@@ -51,5 +53,7 @@ app.component("Panel", Panel);
 app.component("Chip", Chip);
 app.component("Badge", Badge);
 app.component("Divider", Divider);
+
+app.component("StatCard", StatCard);
 
 app.mount("#app");

@@ -4,24 +4,8 @@
         <div class="header">
             <h1>Панель ученика</h1>
             <div class="stats">
-                <Card class="stat-card">
-                    <template #content>
-                        <div class="stat-item">
-                            <span class="stat-number">{{
-                                acceptedProblems
-                            }}</span>
-                            <span class="stat-label">Принято</span>
-                        </div>
-                    </template>
-                </Card>
-                <Card class="stat-card">
-                    <template #content>
-                        <div class="stat-item">
-                            <span class="stat-number">{{ totalAttempts }}</span>
-                            <span class="stat-label">Всего попыток</span>
-                        </div>
-                    </template>
-                </Card>
+                <StatCard :number="acceptedProblems" label="Принято" />
+                <StatCard :number="totalAttempts" label="Всего попыток" />
             </div>
         </div>
 
@@ -702,29 +686,6 @@ onMounted(() => {
 .stats {
     display: flex;
     gap: 1rem;
-}
-
-.stat-card {
-    min-width: 120px;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 0.5rem;
-}
-
-.stat-number {
-    display: block;
-    font-size: 2rem;
-    font-weight: bold;
-    color: var(--p-green-500);
-    margin-bottom: 0.25rem;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.9rem;
-    color: var(--p-text-muted-color);
 }
 
 .loading-container {
