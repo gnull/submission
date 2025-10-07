@@ -16,7 +16,7 @@ pkgs.buildNpmPackage {
 
   # Install phase copies the built files
   installPhase = ''
-    mkdir -p $out
-    cp -r static/* $out
+    mkdir -p $out/var/www
+    cp -r static/* $out/var/www
   '';
 }

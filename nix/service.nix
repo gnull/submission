@@ -1,4 +1,4 @@
-{ config, lib, pkgs, backend, frontend, ... }:
+{ config, lib, pkgs, submission, ... }:
 
 let
   cfg = config.services.submission-web;
@@ -9,14 +9,8 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = backend;
+      default = submission;
       description = "The backend package to use";
-    };
-
-    frontend = lib.mkOption {
-      type = lib.types.package;
-      default = frontend;
-      description = "The frontend package to serve";
     };
 
     host = lib.mkOption {
@@ -53,7 +47,7 @@ in
       after = [ "network.target" ];
 
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/submission --static-dir ${cfg.frontend} --uploads ${cfg.dataDir} --database ${cfg.dataDir}/db.sqlite --host ${cfg.host} --port ${toString cfg.port}";
+        ExecStart = "${cfg.package}/bin/submission --uploads ${cfg.dataDir} --database ${cfg.dataDir}/db.sqlite --host ${cfg.host} --port ${toString cfg.port}";
         
         User = "submission-web";
         Group = "submission-web";

@@ -11,21 +11,26 @@
       nixosModules.default = {config, lib, pkgs, ...}:
         import ./nix/service.nix {
           inherit config lib pkgs;
-          backend = self.packages.${pkgs.system}.backend;
-          frontend = self.packages.${pkgs.system}.frontend;
+          submission = self.packages.${pkgs.system}.default;
         };
     } // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         frontend = pkgs.callPackage ./frontend {};
         backend = pkgs.callPackage ./backend {};
+        main = pkgs.symlinkJoin {
+          name = "submission";
+          paths = [ frontend backend ];
+          buildInputs = [ pkgs.makeWrapper ];
+
+          postBuild = ''
+            wrapProgram $out/bin/submission \
+              --add-flags "--static-dir $out/var/www" \
+          '';
+        };
       in
       {
-        packages.frontend = frontend;
-        packages.backend = backend;
-        packages.default = pkgs.writeShellScriptBin "submission" ''
-          ${backend}/bin/submission --static-dir "${frontend}" "$@"
-        '';
+        packages.default = main;
 
         # Keep your dev shell for development
         devShells.default = pkgs.mkShell {
