@@ -7,16 +7,24 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    {
+      nixosModules.default = {config, lib, pkgs, ...}:
+        import ./nix/service.nix {
+          inherit config lib pkgs;
+          backend = self.packages.${pkgs.system}.backend;
+          frontend = self.packages.${pkgs.system}.frontend;
+        };
+    } // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         frontend = pkgs.callPackage ./frontend {};
         backend = pkgs.callPackage ./backend {};
       in
       {
-        inherit frontend backend;
+        packages.frontend = frontend;
+        packages.backend = backend;
         packages.default = pkgs.writeShellScriptBin "submission" ''
-          ${backend}/bin/submission --static-dir "${frontend}/var/www" "$@"
+          ${backend}/bin/submission --static-dir "${frontend}" "$@"
         '';
 
         # Keep your dev shell for development

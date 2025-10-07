@@ -1,3 +1,20 @@
+## Installing
+
+This web app is packaged as a Nixos system config.
+To install it and enable the systemd service, import this flake as `submission` and then add the following to your config.
+
+```nix
+modules [ submission.nixosModules.default ];
+
+services.submission-web = {
+  enable = true;
+  host = "0.0.0.0";
+  port = 8080;
+  # Optionally, set the storage path:
+  # dataDir = "/some/path";
+};
+```
+
 ## Running
 
 ### Run with Nix
