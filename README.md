@@ -43,5 +43,5 @@ Build and run backend:
 ```sh
 # Run Rust backend
 cd backend
-cargo run --static-dir ../frontend/static
+cargo run -- --static-dir ../frontend/static --host 0.0.0.0 --port 0000
 ```
