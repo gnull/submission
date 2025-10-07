@@ -1,5 +1,25 @@
 ## Running
 
+### Run with Nix
+
+This web service is packages with Nix flakes, and you can both build and run it with a single command.
+The following command just runs the service listening on port 8080, storing sqlite DB and files in the current directory.
+
+```
+nix run
+```
+
+You can pass it extra commandline options like so.
+
+```
+nix run .#default -- --host 0.0.0.0 --port 80
+```
+
+It also accepts `--database` and `--uploads` options to choose where to store data.
+See `--help` for more.
+
+### Manually
+
 Install dependencies:
 
 ```sh
@@ -22,5 +42,6 @@ Build and run backend:
 
 ```sh
 # Run Rust backend
-cargo run
+cd backend
+cargo run --static-dir ../frontend/static
 ```
