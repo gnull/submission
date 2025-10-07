@@ -1,1 +1,15 @@
 /target
+# SQLite
+*.sqlite
+*.sqlite-wal
+
+# Node
+node_modules/
+
+# Build artifacts
+static/
+dist/
+build/
+
+# User uploads
+uploads/

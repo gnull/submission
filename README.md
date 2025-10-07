@@ -22,5 +22,5 @@ Build and run backend:
 
 ```sh
 # Run Rust backend
-cargo run
+cargo run -- --host 0.0.0.0 --port 0000
 ```
